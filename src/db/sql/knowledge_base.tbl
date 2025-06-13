@@ -1,0 +1,7 @@
+CREATE TABLE knowledge_base (
+    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source_document VARCHAR2(1024),
+    chunk_text CLOB,
+    metadata JSON,
+    embedding VECTOR(1536)
+);
