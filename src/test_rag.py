@@ -1,10 +1,10 @@
-import oracledb
 import openai
 import os
 import argparse
 # NumPy is no longer needed in the search function, but still good for the future
 import numpy as np 
 from dotenv import load_dotenv
+from db import MilvusClient
 
 # --- Configuration ---
 load_dotenv()
@@ -29,27 +29,18 @@ def embed_query(text: str) -> list[float]:
     return response.data[0].embedding
 
 def search_database(query_vector: list[float], top_k: int = 5) -> list[tuple]:
-    """Searches the Oracle database for the most relevant chunks."""
-    print(f"Searching for top {top_k} relevant chunks in Oracle DB...")
+    """Searches the Milvus database for the most relevant chunks."""
+    print(f"Searching for top {top_k} relevant chunks in Milvus...")
     try:
-        with oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN) as connection:
-            with connection.cursor() as cursor:
-                sql = """
-                    SELECT chunk_text, source_document,
-                           VECTOR_DISTANCE(embedding, :query_vec, COSINE) as distance
-                    FROM knowledge_base
-                    ORDER BY distance
-                    FETCH FIRST :top_k ROWS ONLY
-                """
-                
-                # === ISSUE === 
-                cursor.execute(sql, query_vec=query_vector, top_k=top_k)
-                # =======================
-
-                results = cursor.fetchall()
-                print("Found relevant chunks.")
-                return results
-    except oracledb.DatabaseError as e:
+        milvus = MilvusClient()
+        results = milvus.search_vectors(query_vector, top_k=top_k)
+        if results is None:
+            print("Milvus search failed.")
+            return []
+        print("Found relevant chunks.")
+        # Return as list of tuples (chunk_text, source_document, distance)
+        return [(r["chunk_text"], r["source_document"], r["distance"]) for r in results]
+    except Exception as e:
         print(f"Database search failed: {e}")
         return []
 

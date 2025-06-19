@@ -11,7 +11,7 @@ from utils.url_extractor import extract_urls
 from utils.logger import setup_logger, log_processing_steps
 from utils.tokenizer import Tokenizer
 from utils.embedder import Embedder
-from db import OracleLoader
+from db import MilvusClient
 
 def parse_args():
     """Parse command line arguments."""
@@ -19,10 +19,10 @@ def parse_args():
     parser.add_argument('--output', '-o', 
                        default=DEFAULT_OUTPUT_FILENAME,
                        help='Output filename (default: main_out.txt)')
-    parser.add_argument('--load-to-oracle', action='store_true',
-                       help='Load processed chunks and embeddings to Oracle database')
+    parser.add_argument('--load-to-milvus', action='store_true',
+                       help='Load processed chunks and embeddings to Milvus vector database')
     parser.add_argument('--batch-size', type=int, default=100,
-                       help='Batch size for Oracle inserts (default: 100)')
+                       help='Batch size for vector inserts (default: 100)')
     return parser.parse_args()
 
 def main():
@@ -94,23 +94,23 @@ def main():
     
     logger.info(f"Results written to {output_path}")
     
-    # Load to Oracle if requested
-    if args.load_to_oracle:
+    # Load to Milvus if requested
+    if args.load_to_milvus:
         try:
-            loader = OracleLoader()
-            rows_inserted = loader.insert_data(
-                source_doc_name=os.path.basename(MARKDOWN_PATH),
+            milvus = MilvusClient()
+            logger.info(f"Milvus connection info: host={milvus.host}, port={milvus.port}, collection={milvus.collection_name}")
+            # MilvusClient handles all at once, batch_size is not used here
+            result = milvus.insert_vectors(
+                source_doc=os.path.basename(MARKDOWN_PATH),
                 chunks=chunks,
-                embeddings=embeddings,
-                batch_size=args.batch_size
+                embeddings=embeddings
             )
-            
-            if rows_inserted is not None:
-                logger.info(f"Successfully loaded {rows_inserted} chunks to Oracle database")
+            if result is not None:
+                logger.info(f"Successfully loaded {len(chunks)} chunks to Milvus database")
             else:
-                logger.error("Failed to load data to Oracle database")
+                logger.error("Failed to load data to Milvus database")
         except Exception as e:
-            logger.error(f"Error during Oracle loading: {e}")
+            logger.error(f"Error during Milvus loading: {e}")
 
 if __name__ == "__main__":
     main()

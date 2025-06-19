@@ -1,4 +1,4 @@
 """Database operations package."""
-from .oracle_loader import OracleLoader
+from .milvus_client import MilvusClient
 
-__all__ = ['OracleLoader'] 
+__all__ = ['MilvusClient'] 
